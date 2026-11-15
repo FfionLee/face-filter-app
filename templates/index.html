@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionFilter Studio ✨ Real-time AI Face Filters</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0c16;
+            --panel-bg: rgba(18, 22, 38, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-gradient: linear-gradient(135deg, #ff007a 0%, #7928ca 50%, #4338ca 100%);
+            --accent-glow: rgba(255, 0, 122, 0.4);
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(circle at 15% 15%, rgba(121, 40, 202, 0.25) 0%, transparent 40%),
+                        radial-gradient(circle at 85% 85%, rgba(255, 0, 122, 0.2) 0%, transparent 45%),
+                        var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 16px 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--panel-border);
+            backdrop-filter: blur(16px);
+            background: rgba(10, 12, 22, 0.7);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--accent-gradient);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1); box-shadow: 0 4px 18px var(--accent-glow); }
+            100% { transform: scale(1.06); box-shadow: 0 6px 28px rgba(255, 0, 122, 0.7); }
+        }
+
+        .brand-title {
+            font-size: 1.45rem;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            background: linear-gradient(120deg, #ffffff 30%, #ff80bf 70%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .header-badges {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #6ee7b7;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            max-width: 1440px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 26px 36px;
+            gap: 30px;
+        }
+
+        .viewport-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #030408;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoElement {
+            display: none;
+        }
+
+        #outputCanvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .camera-overlay-info {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            display: flex;
+            gap: 10px;
+            z-index: 5;
+        }
+
+        .tag-pill {
+            background: rgba(10, 12, 22, 0.75);
+            backdrop-filter: blur(12px);
+            padding: 7px 14px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            color: #f1f5f9;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .placeholder-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 12, 22, 0.94);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .placeholder-overlay.hidden {
+            display: none;
+        }
+
+        .cam-icon {
+            font-size: 56px;
+            filter: drop-shadow(0 0 20px rgba(255, 0, 122, 0.5));
+        }
+
+        .controls-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 16px 22px;
+            border-radius: 18px;
+            backdrop-filter: blur(16px);
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .camera-select {
+            background: rgba(10, 14, 26, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            font-family: inherit;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            max-width: 250px;
+        }
+
+        .camera-select:hover {
+            border-color: rgba(255, 0, 122, 0.5);
+        }
+
+        .camera-select:focus {
+            border-color: #ff007a;
+            box-shadow: 0 0 14px var(--accent-glow);
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 11px 22px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 18px var(--accent-glow);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(255, 0, 122, 0.6);
+        }
+
+        .action-btn.btn-stop {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+            box-shadow: none;
+        }
+
+        .action-btn.btn-stop:hover {
+            background: rgba(239, 68, 68, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.btn-snapshot {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
+        }
+
+        .action-btn.btn-snapshot:hover {
+            box-shadow: 0 6px 22px rgba(16, 185, 129, 0.5);
+        }
+
+        .sidebar-section {
+            width: 440px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 22px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .filter-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .filter-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+        }
+
+        .filter-card {
+            background: rgba(255, 255, 255, 0.035);
+            border: 2px solid rgba(255, 255, 255, 0.07);
+            border-radius: 16px;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            user-select: none;
+        }
+
+        .filter-card:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px) scale(1.02);
+        }
+
+        .filter-card.active {
+            background: linear-gradient(135deg, rgba(255, 0, 122, 0.15), rgba(121, 40, 202, 0.2));
+            border-color: #ff007a;
+            box-shadow: 0 0 24px var(--accent-glow);
+        }
+
+        .filter-card .hot-badge {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            background: #ff007a;
+            color: white;
+            font-size: 0.62rem;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .filter-emoji {
+            font-size: 32px;
+            transition: transform 0.2s;
+        }
+
+        .filter-card:hover .filter-emoji {
+            transform: scale(1.2) rotate(-5deg);
+        }
+
+        .filter-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #f8fafc;
+        }
+
+        .filter-desc {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .metrics-card {
+            display: flex;
+            justify-content: space-around;
+            padding: 18px;
+            background: rgba(10, 14, 26, 0.6);
+            border-radius: 14px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .metric-item {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #38bdf8;
+            font-feature-settings: "tnum";
+        }
+
+        .metric-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            opacity: 0;
+            transform: translateY(15px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 980px) {
+            main {
+                flex-direction: column;
+                padding: 18px;
+            }
+            .sidebar-section {
+                width: 100%;
+            }
+            .filter-grid {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo-icon">✨</div>
+            <div>
+                <h1 class="brand-title">VisionFilter AI</h1>
+                <div class="brand-subtitle">Gen-Z Real-Time Face Effects</div>
+            </div>
+        </div>
+        <div class="header-badges">
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>OpenCV AI Engine Active</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="viewport-section">
+            <div class="camera-wrapper">
+                <video id="videoElement" autoplay playsinline muted></video>
+                <canvas id="outputCanvas"></canvas>
+
+                <div class="camera-overlay-info">
+                    <div class="tag-pill" id="currentFilterTag">Filter: Dog Snap 🐶</div>
+                    <div class="tag-pill" id="fpsTag">0 FPS</div>
+                </div>
+
+                <div class="placeholder-overlay" id="startOverlay">
+                    <div class="cam-icon">📹</div>
+                    <h3 style="font-size: 1.25rem; font-weight: 700;">Camera is currently paused</h3>
+                    <button class="action-btn" id="startCamBtn">Enable Camera</button>
+                </div>
+            </div>
+
+            <div class="controls-bar">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <select id="cameraSelect" class="camera-select" title="Choose Camera Source">
+                        <option value="">Searching for cameras...</option>
+                    </select>
+                    <button class="action-btn btn-stop" id="stopCamBtn">Stop Camera</button>
+                    <button class="action-btn btn-snapshot" id="snapshotBtn">📸 Save Snapshot</button>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    Resolution: <span id="resTag" style="color:#e2e8f0; font-weight:700;">640x480</span>
+                </div>
+            </div>
+        </section>
+
+        <aside class="sidebar-section">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h2 class="panel-title">Choose Filter 🔥</h2>
+                    <span style="font-size: 0.78rem; color: #ff80bf; font-weight: 700;">11 Filters</span>
+                </div>
+                
+                <div class="filter-grid">
+                    <!-- Fun / Aesthetic Filters for 12-16 yrs -->
+                    <div class="filter-card active" data-filter="dog">
+                        <span class="hot-badge">POPULAR</span>
+                        <span class="filter-emoji">🐶</span>
+                        <span class="filter-name">Dog Snap</span>
+                        <span class="filter-desc">Floppy ears, muzzle & tongue</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="shades">
+                        <span class="hot-badge">VIRAL</span>
+                        <span class="filter-emoji">🕶️</span>
+                        <span class="filter-name">Thug Shades</span>
+                        <span class="filter-desc">Deal with it pixel sunglasses</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="crown">
+                        <span class="hot-badge">VIP</span>
+                        <span class="filter-emoji">👑</span>
+                        <span class="filter-name">Royalty Crown</span>
+                        <span class="filter-desc">Gold crown with rubies & jewels</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="anime">
+                        <span class="hot-badge">KAWAII</span>
+                        <span class="filter-emoji">🐱</span>
+                        <span class="filter-name">Anime Cat</span>
+                        <span class="filter-desc">Neko ears + cute cheek blush</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="devil">
+                        <span class="filter-emoji">😈</span>
+                        <span class="filter-name">Devil Horns</span>
+                        <span class="filter-desc">Red devil horns & crimson aura</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="laser">
+                        <span class="hot-badge">MEME</span>
+                        <span class="filter-emoji">👀</span>
+                        <span class="filter-name">Laser Eyes</span>
+                        <span class="filter-desc">Glowing meme energy eye blasts</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="glitch">
+                        <span class="filter-emoji">📺</span>
+                        <span class="filter-name">VHS Glitch</span>
+                        <span class="filter-desc">Retro chromatic RGB shift</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="neon">
+                        <span class="filter-emoji">⚡</span>
+                        <span class="filter-name">Cyberpunk</span>
+                        <span class="filter-desc">Neon magenta edge glow</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="bw">
+                        <span class="filter-emoji">🖤</span>
+                        <span class="filter-name">Monochrome</span>
+                        <span class="filter-desc">Moody black & white contrast</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="inverted">
+                        <span class="filter-emoji">🌀</span>
+                        <span class="filter-name">Inverted</span>
+                        <span class="filter-desc">Neon thermal negative style</span>
+                    </div>
+
+                    <div class="filter-card" data-filter="none">
+                        <span class="filter-emoji">🚫</span>
+                        <span class="filter-name">Original</span>
+                        <span class="filter-desc">Clean natural camera feed</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <h2 class="panel-title" style="margin-bottom: 14px;">Telemetry & Latency ⚡</h2>
+                <div class="metrics-card">
+                    <div class="metric-item">
+                        <div class="metric-value" id="latencyStat">0ms</div>
+                        <div class="metric-label">AI Latency</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value" id="fpsStat">0</div>
+                        <div class="metric-label">Framerate (FPS)</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <div class="toast" id="toast">🎉 Snapshot downloaded to your computer!</div>
+
+    <!-- Hidden canvas for sending frames to backend -->
+    <canvas id="captureCanvas" style="display:none;"></canvas>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const outputCtx = outputCanvas.getContext('2d');
+        const captureCanvas = document.getElementById('captureCanvas');
+        const captureCtx = captureCanvas.getContext('2d');
+        const startOverlay = document.getElementById('startOverlay');
+        const startCamBtn = document.getElementById('startCamBtn');
+        const stopCamBtn = document.getElementById('stopCamBtn');
+        const snapshotBtn = document.getElementById('snapshotBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const toast = document.getElementById('toast');
+        const currentFilterTag = document.getElementById('currentFilterTag');
+        const fpsTag = document.getElementById('fpsTag');
+        const fpsStat = document.getElementById('fpsStat');
+        const latencyStat = document.getElementById('latencyStat');
+        const filterCards = document.querySelectorAll('.filter-card');
+
+        let currentFilter = 'dog';
+        let stream = null;
+        let isProcessing = false;
+        let isCameraRunning = false;
+        let frameCount = 0;
+        let lastFpsTime = performance.now();
+        let selectedDeviceId = null;
+
+        // Dynamic Camera Discovery
+        async function updateCameraList() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                cameraSelect.innerHTML = '';
+                if (videoDevices.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = 'No camera found';
+                    cameraSelect.appendChild(opt);
+                    return;
+                }
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Camera ${index + 1} (External/Webcam)`;
+                    if (selectedDeviceId && device.deviceId === selectedDeviceId) {
+                        option.selected = true;
+                    }
+                    cameraSelect.appendChild(option);
+                });
+
+                if (!selectedDeviceId && videoDevices.length > 0) {
+                    selectedDeviceId = cameraSelect.value;
+                }
+            } catch (err) {
+                console.warn("Could not list video devices:", err);
+            }
+        }
+
+        cameraSelect.addEventListener('change', async () => {
+            selectedDeviceId = cameraSelect.value;
+            if (isCameraRunning) {
+                stopCamera();
+                await startCamera(selectedDeviceId);
+            }
+        });
+
+        // Filter Card Selection
+        filterCards.forEach(card => {
+            card.addEventListener('click', () => {
+                filterCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                currentFilter = card.dataset.filter;
+                const emoji = card.querySelector('.filter-emoji').textContent;
+                const name = card.querySelector('.filter-name').textContent;
+                currentFilterTag.textContent = `Filter: ${name} ${emoji}`;
+            });
+        });
+
+        // Start Camera
+        async function startCamera(deviceId = null) {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    const isIp = location.hostname !== 'localhost' && location.hostname !== '127.0.0.1';
+                    if (isIp && location.protocol !== 'https:') {
+                        alert(
+                            "⚠️ Browser Security Alert:\n\n" +
+                            "Webcams require a Secure Context. Please access via:\n" +
+                            "http://localhost:5000\n\n" +
+                            "instead of an IP address."
+                        );
+                        return;
+                    }
+                    throw new Error("getUserMedia is not supported by your browser.");
+                }
+
+                const videoConstraints = {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                };
+
+                if (deviceId) {
+                    videoConstraints.deviceId = { exact: deviceId };
+                } else if (selectedDeviceId) {
+                    videoConstraints.deviceId = { exact: selectedDeviceId };
+                }
+
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: videoConstraints,
+                    audio: false
+                });
+                video.srcObject = stream;
+                await video.play();
+
+                outputCanvas.width = video.videoWidth || 640;
+                outputCanvas.height = video.videoHeight || 480;
+                captureCanvas.width = 640;
+                captureCanvas.height = 480;
+
+                startOverlay.classList.add('hidden');
+                isCameraRunning = true;
+
+                await updateCameraList();
+                requestAnimationFrame(processFrameLoop);
+            } catch (err) {
+                console.error("Camera access error:", err);
+                alert("Camera access error: " + err.message + "\nPlease verify your webcam is connected and permitted in browser settings.");
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            isCameraRunning = false;
+            startOverlay.classList.remove('hidden');
+        }
+
+        startCamBtn.addEventListener('click', () => startCamera());
+        stopCamBtn.addEventListener('click', stopCamera);
+
+        // Core processing loop
+        async function processFrameLoop() {
+            if (!isCameraRunning) return;
+
+            if (!isProcessing && video.readyState >= 2) {
+                isProcessing = true;
+                const startTime = performance.now();
+
+                captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+                const imageData = captureCanvas.toDataURL('image/jpeg', 0.72);
+
+                try {
+                    const response = await fetch('/api/process_frame', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image: imageData,
+                            filter: currentFilter
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const resultImg = new Image();
+                        resultImg.onload = () => {
+                            outputCtx.drawImage(resultImg, 0, 0, outputCanvas.width, outputCanvas.height);
+                            const latency = Math.round(performance.now() - startTime);
+                            latencyStat.textContent = latency + 'ms';
+                            isProcessing = false;
+                        };
+                        resultImg.src = data.image;
+                    } else {
+                        isProcessing = false;
+                    }
+                } catch (err) {
+                    console.error("Frame processing error:", err);
+                    isProcessing = false;
+                }
+
+                // FPS Counter
+                frameCount++;
+                const now = performance.now();
+                if (now - lastFpsTime >= 1000) {
+                    const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+                    fpsTag.textContent = `${fps} FPS`;
+                    fpsStat.textContent = fps;
+                    frameCount = 0;
+                    lastFpsTime = now;
+                }
+            }
+
+            requestAnimationFrame(processFrameLoop);
+        }
+
+        // Snapshot download
+        snapshotBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `snap-${currentFilter}-${Date.now()}.png`;
+            link.href = outputCanvas.toDataURL('image/png');
+            link.click();
+
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        });
+
+        window.addEventListener('load', () => {
+            startCamera();
+        });
+    </script>
+</body>
+</html>
